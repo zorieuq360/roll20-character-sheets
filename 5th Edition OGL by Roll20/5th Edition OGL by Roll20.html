@@ -7573,14 +7573,13 @@
             });
             // ACTIONS, LEGENDARY ACTIONS, REACTIONS, TRAITS
             var contentarray = page.content;
-            if(page.data["data-Legendary Actions"]) {
-                update["npc_legendary_actions"] = 3;
+            if (page.data["data-Legendary Actions"]) {
+                const actionCount = (page.data["data-LANum"]) ? page.data["data-LANum"] : 3;
+                update["npc_legendary_actions"] = (page.data["data-LANum"]) ? page.data["data-LANum"] : 3;
                 if (page.data["Legendary Actions Desc"]) {
                     update["npc_legendary_actions_desc"] = page.data["Legendary Actions Desc"];
-                } else if (currentData.npc_legendary_actions > 0) {
-                    update["npc_legendary_actions_desc"] = `The ${page.name} can take ${currentData.npc_legendary_actions}, choosing from the options below. Only one legendary option can be used at a time and only at the end of another creature's turn. The ${page.name} regains spent legendary actions at the start of its turn.`;
                 } else {
-                    update["npc_legendary_actions_desc"] = "";
+                    update["npc_legendary_actions_desc"] = `The ${page.name} can take ${actionCount}, choosing from the options below. Only one legendary option can be used at a time and only at the end of another creature's turn. The ${page.name} regains spent legendary actions at the start of its turn.`;
                 };
             };
             // ACTIONS & LEGENDARY ACTIONS
