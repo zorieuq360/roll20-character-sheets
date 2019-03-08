@@ -7492,6 +7492,7 @@
             update[`repeating_spell-${lvl}_${id}_options-flag`] = "0"; 
         };
         if(category === "Monsters") {
+            console.log(`%c MONSTERS: ${page.name} dropped`, "color: purple; font-weight:16px;");
             update["npc"] = "1";
             update["npc_options-flag"] = "0";
             if(page.name && page.name != "") {update["npc_name"] = page.name};
@@ -7584,7 +7585,7 @@
             };
             // ACTIONS & LEGENDARY ACTIONS
             ["Actions", "Legendary Actions"].forEach((attr) => {
-                if(page.data[`data-${attr}`]) {
+                if (page.data[`data-${attr}`]) {
                     const npcaction = (attr === "Actions") ? "npcaction" : "npcaction-l";
                     let actionsobj = {};
                     jsonparse(page.data[`data-${attr}`]).forEach((val) => { actionsobj[val.Name] = val; });
@@ -7615,12 +7616,12 @@
                 } else if(contentarray && contentarray.indexOf(`${attr}`) > -1) {
                     console.log(`%c ${attr} was not found for ${page.name}`, "color: orange;");
                 };
-            });
+            }); 
             //REACTIONS
-            if(page.data["data-Reactions"]) {
+            if (page.data["data-Reactions"]) {
                 update["npcreactionsflag"] = 1;
                 let reactionsobj = {};
-                jsonparse(page.data["data-Reactions"]).forEach((val) => { reactionsobj[val.Name] = val.Desc; });
+               jsonparse(page.data["data-Reactions"]).forEach((val) => { reactionsobj[val.Name] = val.Desc; });
                 _.each(reactionsobj, (desc, name) => {
                     newrowid = generateRowID();
                     update[`repeating_npcreaction_${newrowid}_name`] = name + ".";
@@ -7631,9 +7632,9 @@
                 });
             } else if(contentarray && contentarray.indexOf("Reactions") > -1) {
                 console.log(`%c Reactions was not found for ${page.name}`, "color: orange;");
-            };
+            };  
             //TRAITS
-            if(page.data["data-Traits"]) {
+            if (page.data["data-Traits"]) {
                 let traitsobj     = {};
                 jsonparse(page.data["data-Traits"]).forEach((val) => { traitsobj[val.Name] = val.Desc; });
                 _.each(traitsobj, (desc, name) => {
@@ -7659,9 +7660,116 @@
                         callbacks.push(() => {update_pb();} );
                         callbacks.push(() => {update_spell_slots();} );
                     }
+                    if(name === "Innate Spellcasting") {
+                        const ability = (page.data["Spellcasting Ability"]) ? `@{${page.data["Spellcasting Ability"].toLowerCase()}_mod}+` : "0*";
+                        update["npcspellcastingflag"]  = 1;
+                        update["spellcasting_ability"] = ability;
+                    };
                 });
             } else if(contentarray && contentarray.indexOf("Traits") > -1) {
                 console.log(`%c Traits was not found for ${page.name}`, "color: orange;");
+            };
+            //Spells 
+            if (page.data["data-Spells"]) {
+                let spellsobj = [];
+                //Put together a list of spells to get from the Comepndium
+                ["spells", "innate"].forEach((type) => {
+                    let spellList = jsonparse(page.data["data-Spells"])[`${type}`];
+                    if (spellList) {
+                        Object.keys(spellList).map((objectKey, index) => {
+                            spellList[objectKey].forEach((spell) => {
+                                spellsobj.push(spell);
+                            });
+                        });
+                    };
+                });
+                getCompendiumPage(spellsobj, (spellData) => {
+                    const innate = (jsonparse(page.data["data-Spells"])[`innate`]) ? jsonparse(page.data["data-Spells"])[`innate`] : false;
+                    let existing = {};
+                    let update   = [], callbacks = [];
+
+                    spellData.forEach((page) => {
+                        const spell        = page.data;
+                        const lvl          = spell["Level"] && spell["Level"] > 0 ? spell["Level"] : "cantrip";
+                        const newrowid     = generateRowID();
+                        const repeatingRow = `repeating_spell-${lvl}_${newrowid}`;
+
+                        update[`${repeatingRow}_spelllevel`]               = lvl;
+                        update[`${repeatingRow}_spell_ability`]            = (update["spellcasting_ability"]) ? update["spellcasting_ability"] : "spell";
+                        (spell.Name) ? update[`${repeatingRow}_spellname`] = spell.Name : false;
+                        update[`${repeatingRow}_spelloutput`]              = (page.data["Damage"] || page.data["Healing"]) ? "ATTACK" : "SPELLCARD";
+
+                        ["spellclass", "spellsource", "data-description"].forEach((attr) => {
+                            const suffix = (attr.includes("description")) ? "spelldescription" : attr;
+                            (spell[`${attr}`]) ? update[`${repeatingRow}_${suffix}`] = spell[`${attr}`] : false;
+                        });
+
+                        ["Add Casting Modifier", "Casting Time", "Concentration", "Damage Type", "Damage", "Duration", "Healing", "Material", "Range", "Ritual", "Save", "Save Success", "School", "Secondary Damage", "Secondary Damage Type", "Spell Attack", "Target"].forEach((attr) => {
+                            if (spell[`${attr}`]) {
+                                //Adjust the array entry to match the attribute name in the HTML
+                                const name = 
+                                    (attr === "Add Casting Modifier") ? "dmgmod" : 
+                                    (attr === "Material") ? `comp_materials` : 
+                                    (attr === "Spell Attack") ? `attack` : 
+                                    (attr.includes("Secondary Damage")) ? attr.split("Secondary ")[0] + "2" : 
+                                    attr;
+                                const spellattribute = name.toLowerCase().replace(" ", "");
+                                //Concentration, Ritual, and School are exceptions to norm
+                                const updateValue = 
+                                    (attr === "Concentration" || attr === "Ritual") ? `{{${spellattribute}=1}}` : 
+                                    (attr === "School") ? spell["School"].toLowerCase() : 
+                                    spell[`${attr}`];
+                                update[`${repeatingRow}_spell${spellattribute}`] = updateValue;
+                            };
+                        });
+
+                       ["Higher Spell Slot Bonus", "Higher Spell Slot Desc", "Higher Spell Slot Dice", "Higher Spell Slot Die"].forEach((attr) => {
+                            if (spell[`${attr}`]) {
+                                const spellattribute = (attr.includes("Bonus")) ? "hlbonus" : (attr.includes("Desc")) ? "athigherlevels" : (attr.includes("Dice")) ? "hldie" : "hldietype";
+                                update[`${repeatingRow}_spell${spellattribute}`] = spell[`${attr}`];
+                            };
+                        }); 
+
+                        if (spell["Components"]) {
+                            ["v", "s", "m"].forEach((comp) => {
+                                if (spell["Components"].toLowerCase().indexOf(comp) === -1) {update[`${repeatingRow}_spellcomp_${comp}`] = "0"};
+                            });
+                        };
+
+                        if(page.data["Damage"] || page.data["Healing"]) {
+                            //This needs to run the create_attack_from_spell
+                            callbacks.push(() => { create_attack_from_spell(lvl, newrowid, currentData.character_id); });
+                        } else if (page.data["Higher Spell Slot Desc"] && page.data["Higher Spell Slot Desc"] != "") {
+                            //This needs to run the update_spelloutput
+                        }; 
+
+                        if (spell["data-Cantrip Scaling"] && lvl == "cantrip") {
+                            update[`${repeatingRow}_spell_damage_progression`] = "Cantrip " + spell["data-Cantrip Scaling"].charAt(0).toUpperCase() + spell["data-Cantrip Scaling"].slice(1);
+                        };
+
+                        if (innate) {
+                            const spellName = (spell.Name).toLowerCase();
+                            //Search each keys in INNATE to see if spell name === one of the Values
+                            Object.keys(innate).map((objectKey, index) => {
+                                innate[objectKey].forEach((spell) => {
+                                    (spell === spellName) ? update[`${repeatingRow}_innate`] = objectKey : false;
+                                });
+                            });
+                        };
+
+                        update[`${repeatingRow}_options-flag`] = "0";
+                    });
+
+                    setAttrs(update, {silent: true}, () => {
+                        callbacks.forEach((callback) => {
+                            callback(); 
+                        })
+                    });
+
+                    return {
+                        callbacks: callbacks
+                    };
+                }); 
             };
         };
         if(category === "Feats") {
