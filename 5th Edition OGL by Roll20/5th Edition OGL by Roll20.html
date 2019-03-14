@@ -7450,7 +7450,7 @@
                 (page.data[`${attr}`]) ? update[`repeating_spell-${lvl}_${id}_${suffix}`] = page.data[`${attr}`] : false;
             });
 
-           ["Add Casting Modifier", "Casting Time", "Concentration", "Damage Type", "Damage", "Duration", "Healing", "Material", "Range", "Ritual", "Save", "Save Success", "School", "Secondary Damage", "Secondary Damage Type", "Spell Attack", "Target"].forEach((attr) => {
+            ["Add Casting Modifier", "Casting Time", "Concentration", "Damage Type", "Damage", "Duration", "Healing", "Material", "Range", "Ritual", "Save", "Save Success", "School", "Secondary Damage", "Secondary Damage Type", "Target"].forEach((attr) => {
                 if(page.data[`${attr}`]) {
                     //Adjust the array entry to match the attribute name in the HTML
                     const name           = (attr === "Add Casting Modifier") ? "dmgmod" : (attr === "Material") ? `comp_materials` : (attr.includes("Secondary Damage")) ? attr.split("Secondary ")[0] + "2" : attr;
@@ -7472,6 +7472,10 @@
                 ["v", "s", "m"].forEach((comp) => {
                     if(page.data["Components"].toLowerCase().indexOf(comp) === -1) {update[`repeating_spell-${lvl}_${id}_spellcomp_${comp}`] = "0"};
                 });
+            };
+
+            if (page.data["Spell Attack"]) {
+                update[`repeating_spell-${lvl}_${id}_spellattack`] = page.data[`Spell Attack`];
             };
 
             if(page.data["Damage"] || page.data["Healing"]) {
