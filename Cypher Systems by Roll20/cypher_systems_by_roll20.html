@@ -829,7 +829,7 @@
                     <label data-i18n-title="level" title="Level">
                         <span class="lab" data-i18n="level">Level</span>
                         <input type="number" name="attr_level" value="1" />
-                        (<span name="attr_npcbasediff"></span>)
+                        (<span name="attr_npcbasetn"></span>)
                     </label>
                 </div>
                 <div class="line">
@@ -931,10 +931,12 @@
     <!-- Game settings -->
     <input type="hidden" name="attr_gnlsettings_sheet_style" value="2" />
     <input type="hidden" name="attr_gnlsettings_sheet_rolls" value="1" />
-    <input type="hidden" name="attr_gnlsettings_sheetuseasset" value="1" />
+    <input type="hidden" name="attr_gnlsettings_sheetuseasset" value="0" />
     <input type="hidden" name="attr_gnlsettings_sheetusebonus" value="0" />
     <input type="hidden" name="attr_gnlsettings_sheetusecost" value="0" />
     <input type="hidden" name="attr_gnlsettings_sheetuseapi" value="0" />
+    <!-- Misc -->
+    <input type="hidden" name="attr_converted_from" value="none" />
 </div> <!-- END HIDDEN Rolls and Calculations -->
 
 <!-- ROLL TEMPLATES -->
@@ -1294,7 +1296,7 @@
 	// Version handling
 	const versioning = function() {
         let version = 2.0;
-		getAttrs(["version","gnlsettings_sheet_style","gnlsettings_sheet_rolls","gnlsettings_sheetuseasset","gnlsettings_sheetusebonus","gnlsettings_sheetusecost","gnlsettings_sheetuseapi"], (v) => {
+		getAttrs(["version"], (v) => {
             let vrs = (parseFloat(v["version"]) || 0.0);
 			if (vrs == version) {
                 console.log("Cypher Systems by Roll20 v" + vrs);
@@ -1302,21 +1304,31 @@
 			} else if (vrs == 0.0) {
                 // Conversion from older sheets needed?
                 check_for_conversion(() => {
-                    setAttrs({"version": 2.0}, {silent: true}, () => {
-                        console.log("Cypher Systems by Roll20 v2");
-                        update_chartype();
+                    getAttrs(["converted_from","gnlsettings_sheet_style","gnlsettings_sheet_rolls","gnlsettings_sheetuseasset","gnlsettings_sheetusebonus","gnlsettings_sheetusecost","gnlsettings_sheetuseapi"], (v) => {
+                        let update = {};
+                        update["version"] = "2.0";
+                        update["sheetuseapi"] = (v["gnlsettings_sheetuseapi"] || "0");
+                        if((v["converted_from"] || "none") == "none") {
+                            update["sheet_style"] = (v["gnlsettings_sheet_style"] || "2");
+                            update[`sheet_style_0`] = 0;
+                            update[`sheet_style_1`] = 0;
+                            update[`sheet_style_2`] = 0;
+                            update[`sheet_style_99`] = 0;
+                            update[`sheet_style_${(v["gnlsettings_sheet_style"] || "2")}`] = 1;
+                        }
+                        if(["Numenéra","The Strange by Roll20","none"].includes((v["converted_from"] || "none"))) {
+                            update["sheet_rolls"] = (v["gnlsettings_sheet_rolls"] || "1");
+                            update["sheetuseasset"] = (v["gnlsettings_sheetuseasset"] || "0");
+                            update["sheetusebonus"] = (v["gnlsettings_sheetusebonus"] || "0");
+                            update["sheetusecost"] = (v["gnlsettings_sheetusecost"] || "0");
+                        }
+                        setAttrs(update, {silent: true}, () => {
+                            versioning();
+                        });
                     });
                 });
 			} else {
-                let update = {};
-                update["version"] = version;
-                update["sheet_style"] = (v["gnlsettings_sheet_style"] || "2");
-                update["sheet_rolls"] = (v["gnlsettings_sheet_rolls"] || "1");
-                update["sheetuseasset"] = (v["gnlsettings_sheetuseasset"] || "1");
-                update["sheetusebonus"] = (v["gnlsettings_sheetusebonus"] || "0");
-                update["sheetusecost"] = (v["gnlsettings_sheetusecost"] || "0");
-                update["sheetuseapi"] = (v["gnlsettings_sheetuseapi"] || "0");
-				setAttrs(update, {silent: true}, () => {
+				setAttrs({"version": version}, {silent: true}, () => {
                     versioning();
                 });
 			}
@@ -1324,7 +1336,7 @@
 	};
     const check_for_conversion = function(doneupdating) {
         console.log("Cypher Systems by Roll20: Checking for conversion");
-        getAttrs(["mightpool","cyphers","cyper","repeating_skillmight_$0_skillmightname","mightedge","speededge","intellectedge"], (v) => {
+        getAttrs(["mightpool","cyphers","cyper","mightedge","speededge","intellectedge","npcbasediff"], (v) => {
             if((typeof v["mightpool"] !== "undefined") && (typeof v["cyphers"] !== "undefined")) {
                 // Convert from Numenéra
                 convert_from_numenera(doneupdating);
@@ -1332,9 +1344,10 @@
                 // Convert from The Strange
                 convert_from_thestrange(doneupdating);
             } else if(
-                (typeof v["mightedge"] !== "undefined") ||
-                (typeof v["speededge"] !== "undefined") ||
-                (typeof v["intellectedge"] !== "undefined")
+                (typeof v["mightedge"] !== "undefined")
+                || (typeof v["speededge"] !== "undefined")
+                || (typeof v["intellectedge"] !== "undefined")
+                || (typeof v["npcbasediff"] !== "undefined")
             ) {
                 // convert from Community Cypher System Sheet
                 convert_from_cypher(doneupdating);
@@ -1346,7 +1359,7 @@
     const convert_from_cypher = function(doneupdating) {
         // convert from Community Cypher System Sheet
         console.log("Cypher Systems by Roll20: converting from community Cypher System sheet...");
-        let fields = ["sheetStyle","level","sheetRolls","initvarskill"];
+        let fields = ["sheetstyle","level","sheetRolls","initvarskill"];
         // WIP
         statids = {};
         getSectionIDs("repeating_abilities", (abids) => {
@@ -1398,12 +1411,13 @@
                                                     let update = {};
                                                     // Sheet style
                                                     update["sheet_style"] = (v["sheetstyle"] || "0");
-                                                    update["sheet_style_0"] = (update["sheet_style"] == "0") ? "1" : "0";
-                                                    update["sheet_style_1"] = (update["sheet_style"] == "1") ? "1" : "0";
-                                                    update["sheet_style_2"] = (update["sheet_style"] == "2") ? "1" : "0";
-                                                    update["sheet_style_99"] = (update["sheet_style"] == "99") ? "1" : "0";
+                                                    update[`sheet_style_0`] = 0;
+                                                    update[`sheet_style_1`] = 0;
+                                                    update[`sheet_style_2`] = 0;
+                                                    update[`sheet_style_99`] = 0;
+                                                    update[`sheet_style_${(v["sheetstyle"] || "0")}`] = 1;
                                                     if(update["sheet_style"] == "99") { // NPC
-                                                        update["npcbasediff"] = (parseInt(v["level"]) || 0)*3;
+                                                        update["npcbasetn"] = (parseInt(v["level"]) || 0)*3;
                                                         update["settings_show"] = 0;
                                                     } else { // PC
                                                         update["sheet_rolls"] = (typeof v["sheetrolls"] === "undefined") ? "1" : "0";
@@ -1470,6 +1484,7 @@
                                                             update[`repeating_artifact-list_${id}_artifactchkdesc`] = 0;
                                                         });
                                                     }
+                                                    update["converted_from"] = "Community Cypher System";
                                                     setAttrs(update, {silent: true}, () => {
                                                         doneupdating();
                                                     });
@@ -1579,6 +1594,7 @@
                         update["sheet_style_2"] = "0";
                         update["sheet_style_99"] = "0";
                         update["sheet_style"] = "1";
+                        update["converted_from"] = "Numenéra";
                         setAttrs(update, {silent: true}, () => {
                             doneupdating();
                         });
@@ -1691,6 +1707,7 @@
             update["sheet_style_2"] = 1;
             update["sheet_style_99"] = 0;
             update["sheet_style"] = 2;
+            update["converted_from"] = "The Strange by Roll20";
             setAttrs(update, {silent: true}, () => {
                 doneupdating();
             });
@@ -1699,10 +1716,10 @@
 
     // === Settings
     const update_chartype = function() {
-        getAttrs(["sheet_style","initname","level","npcbasediff"], (v) => {
+        getAttrs(["sheet_style","initname","level","npcbasetn"], (v) => {
             if((parseInt(v["sheet_style"]) || 2) == 99) { // NPC
-                if( ((parseInt(v.level) || 1)*3) != (parseInt(v.npcbasediff) || 0) ) {
-                    setAttrs({"npcbasediff":((parseInt(v.level) || 1)*3)}, {silent: true});
+                if( ((parseInt(v.level) || 1)*3) != (parseInt(v.npcbasetn) || 0) ) {
+                    setAttrs({"npcbasetn":((parseInt(v.level) || 1)*3)}, {silent: true});
                 }
             } else { // PC
                 if(v.initname != getTranslationByKey("initiative")) {
@@ -1916,7 +1933,7 @@
     // NPC
     on("change:level", (e) => {
         if('newValue' in e) {
-            setAttrs({"npcbasediff":((parseInt(e.newValue) || 1)*3)}, {silent: true});
+            setAttrs({"npcbasetn":((parseInt(e.newValue) || 1)*3)}, {silent: true});
         }
     });
 </script>
