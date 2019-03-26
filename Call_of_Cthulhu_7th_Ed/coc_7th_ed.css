@@ -162,6 +162,10 @@ div[class="repcontainer editmode"] ~ div[class^="repcontrol"] button[class="btn 
     display: none;    
 }
 
+.charsheet div.sheet-skills5 {
+    display: none;    
+}
+
 
 .sheet-showskills[value="1"]:checked ~ div.sheet-skills1 {
     display: block;
@@ -179,6 +183,9 @@ div[class="repcontainer editmode"] ~ div[class^="repcontrol"] button[class="btn 
     display: block;
 }
 
+.sheet-showskills[value="5"]:checked ~ div.sheet-skills5 {
+    display: block;
+}
 
 .sheet-HideConfig:checked ~ *.sheet-config {
 	display:none;
@@ -285,6 +292,16 @@ input[type=checkbox].sheet-arrow  {
 .sheet-showskills[value="4"]:checked ~ h4.sheet-section-head {
     background-image: linear-gradient(black, #273f13);
     background-color: #273f13;
+    color: white;
+    text-align: center;
+    font-weight: normal;
+    font-style: normal;
+    border: 1px solid black;
+}
+
+.sheet-showskills[value="5"]:checked ~ h4.sheet-section-head {
+    background-image: linear-gradient(black, #b49170);
+    background-color: #b49170;
     color: white;
     text-align: center;
     font-weight: normal;
